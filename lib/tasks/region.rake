@@ -3,7 +3,12 @@ require 'httparty'
 namespace :region do
 
   desc 'Install china region fu'
-  task :install => ['china_region_fu_engine:install:migrations', 'db:migrate', 'region:download', 'region:import']
+  task :install do
+    Rake::Task['china_region_fu_engine:install:migrations'].invoke
+    Rake::Task['db:migrate'].invoke
+    Rake::Task['region:download'].invoke
+    Rake::Task['region:import'].invoke
+  end
 
   desc 'Download regions.yml from https://raw.github.com/Xuhao/china_region_data/master/regions.yml'
   task :download do
@@ -38,17 +43,22 @@ namespace :region do
   end
 
   def load_to_db(regions)
+    province_count = 1
+    city_count = 1
+    district_count = 1
     regions.each do |province_name, province_hash|
-      current_province = Province.where(name: province_name, pinyin: province_hash['pinyin'], pinyin_abbr: province_hash['pinyin_abbr']).first_or_create!
+      current_province = Province.where(name: province_name, pinyin: province_hash['pinyin'], pinyin_abbr: province_hash['pinyin_abbr'], id: province_count).first_or_create!
       cities_hash = province_hash['cities']
       cities_hash.each do |city_name, city_hash|
-        current_city = current_province.cities.where(name: city_name, pinyin: city_hash['pinyin'], pinyin_abbr: city_hash['pinyin_abbr'], zip_code: city_hash['zip_code'], level: city_hash['level'] || 4).first_or_create!
+        current_city = current_province.cities.where(id: city_count, name: city_name, pinyin: city_hash['pinyin'], pinyin_abbr: city_hash['pinyin_abbr'], zip_code: city_hash['zip_code'], level: city_hash['level'] || 4).first_or_create!
         districts_hash = city_hash['districts']
         districts_hash.each do |district_name, district_hash|
-          current_city.districts.where(name: district_name, pinyin: district_hash['pinyin'], pinyin_abbr: district_hash['pinyin_abbr']).first_or_create!
+          current_city.districts.where(id: district_count, name: district_name, pinyin: district_hash['pinyin'], pinyin_abbr: district_hash['pinyin_abbr']).first_or_create!
+          district_count += 1
         end
+        city_count += 1
       end
+      province_count += 1
     end
   end
-
 end
